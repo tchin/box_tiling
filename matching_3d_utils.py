@@ -101,6 +101,34 @@ def execute_trit(vertices, tiling):
     tiling.remove_edges_from(edges_to_remove)
     tiling.add_edges_from(edges_to_add)
 
+def get_all_flips(tiling):
+    flips = []
+
+    # index flips by vertex with lowest coordinates
+    for v in tiling.nodes():
+        v_arr = np.array(v)
+        x_neighbor = tuple(v_arr + np.array([1,0,0]))
+        y_neighbor = tuple(v_arr + np.array([0,1,0]))
+        z_neighbor = tuple(v_arr + np.array([0,0,1]))
+
+        xy = tuple(v_arr + np.array([1,1,0]))
+        yz = tuple(v_arr + np.array([0,1,1]))
+        xz = tuple(v_arr + np.array([1,0,1]))
+
+        if x_neighbor in tiling and y_neighbor in tiling:
+            f = [v, x_neighbor, y_neighbor, xy]
+            if vertices_have_flip(f, tiling):
+                flips.append(f)
+        if x_neighbor in tiling and z_neighbor in tiling:
+            f = [v, x_neighbor, z_neighbor, xz]
+            if vertices_have_flip(f, tiling):
+                flips.append(f)
+        if y_neighbor in tiling and z_neighbor in tiling:
+            f = [v, y_neighbor, z_neighbor, yz]
+            if vertices_have_flip(f, tiling):
+                flips.append(f)
+    return flips
+
 def compute_twist(tiling):
     u = np.array([0,0,-1])
     twist = 0
