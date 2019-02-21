@@ -131,22 +131,26 @@ def get_all_flips(tiling):
 
 def explore_flip_component(tiling):
     G = nx.Graph()
-    G.add_node(tuple(tiling))
+    G.add_node(tuple(sorted(tiling.edges())))
 
     q = [tiling]
     while q: #continue until queue is empty
+        print(len(q))
         cur = q[0]
+        cur_node = tuple(sorted(cur.edges()))
         flips = get_all_flips(cur)
         for flip in flips:
             new_tiling = nx.DiGraph()
             new_tiling.add_nodes_from(cur)
-            new_tiling.add_edges_from(cur.edges)
+            new_tiling.add_edges_from(cur.edges())
             execute_flip(flip, new_tiling)
-            if tuple(new_tiling) not in G:
-                print("new tiling: " + tuple(new_tiling))
-                G.add_node(tuple(new_tiling))
+            new_node = tuple(sorted(new_tiling.edges()))
+            if new_node not in G:
+                print("new tiling: " + str(new_node))
+                G.add_node(new_node)
                 q.append(new_tiling)
-            G.add_edge(tuple(cur), tuple(new_tiling))
+            G.add_edge(cur_node, new_node)
+        q = q[1:]
     return G
 
 def compute_twist(tiling):
