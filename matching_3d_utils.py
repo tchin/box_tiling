@@ -25,8 +25,9 @@ def vertices_have_flip(vertices, tiling):
 
     # check all edges out of a vertex in our group goes to another vertex in our group
     for v in vertices:
-        neighbors = tiling.successors(v)
-        if len(neighbors) > 0 and neighbors[0] not in vertices:
+        neighbors = list(tiling.successors(v)) + list(tiling.predecessors(v))
+        assert(len(neighbors) == 1)
+        if neighbors[0] not in vertices:
             return False
 
     return True
@@ -59,7 +60,10 @@ def execute_flip(vertices, tiling):
         # if new_end is in our flip, add that edge. Otherwise, we'll add it
         # when we get to the vertex that will point to v
         if new_end in vertices:
-            edges_to_add.append((v, new_end))
+            if sum(v) % 2 == 0:
+                edges_to_add.append((v, new_end))
+            else:
+                edges_to_add.append((new_end,v))
 
     tiling.remove_edges_from(edges_to_remove)
     tiling.add_edges_from(edges_to_add)
@@ -69,7 +73,6 @@ def vertices_have_trit(vertices, tiling):
     assert all([v in tiling for v in vertices])
 
     trit_options = {v: filter(lambda x: is_adjacent(v,x), vertices) for v in vertices}
-    print(trit_options)
 
     for v in vertices:
         neighbors = list(tiling.predecessors(v)) + list(tiling.successors(v))
@@ -93,10 +96,8 @@ def execute_trit(vertices, tiling):
         new_end = tuple(np.bitwise_xor(np.bitwise_xor(neighbors[0],\
                                        trit_options[v][0]),\
                                        trit_options[v][1]))
-        if v < new_end:
+        if sum(v) % 2 == 0:
             edges_to_add.append((v, new_end))
-    print("removing: " + str(edges_to_remove))
-    print("adding: " + str(edges_to_add))
     tiling.remove_edges_from(edges_to_remove)
     tiling.add_edges_from(edges_to_add)
 
@@ -117,11 +118,6 @@ def compute_twist(tiling):
                 shadow_dominoes += list(tiling.edges(v1)) + list(tiling.in_edges(v1))
             shadow_vects = [np.array(d[1])-np.array(d[0]) for d in shadow_dominoes]
             contrib = 0
-            print("edge: " + str(e))
             for d, v in zip(shadow_dominoes, shadow_vects):
-                indiv_contrib = np.linalg.det(np.array([v, edge_vect, u]))
-                contrib += indiv_contrib
-                print("\t" + str(d) + " (" + str(v)+ "):\t" + str(indiv_contrib))
-            print("\ttotal:" + str(contrib))
-            twist += contrib
-    return twist
+                twist += np.linalg.det(np.array([v, edge_vect, u]))
+    return int(twist/4.0)
