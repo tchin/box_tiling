@@ -154,7 +154,12 @@ def explore_flip_component(tiling, progress=None):
         cur = q[0]
         cur_node = tuple(sorted(cur.edges()))
         flips = get_all_flips(cur)
+
+        done = [G[cur_node][v]['flip'] for v in G[cur_node]]
+        flips = filter(lambda x: sorted(x) not in done, flips)
+
         for flip in flips:
+            flip = sorted(flip)
             new_tiling = nx.DiGraph()
             new_tiling.add_nodes_from(cur)
             new_tiling.add_edges_from(cur.edges())
@@ -164,10 +169,11 @@ def explore_flip_component(tiling, progress=None):
             if new_node not in G:
                 G.add_node(new_node)
                 q.append(new_tiling)
-                count += 1
-                if progress != None and count % progress == 0:
-                    print(count)
-            G.add_edge(cur_node, new_node)
+                if progress != None:
+                    count += 1
+                    if count % progress == 0:
+                        print(count)
+            G.add_edge(cur_node, new_node, flip = flip)
         q = q[1:]
     return G
 
