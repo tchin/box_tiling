@@ -10,6 +10,21 @@ def is_adjacent(u,v):
     diff_ind = np.nonzero(diff)[0]
     return len(diff_ind) == 1 and abs(diff[diff_ind]) == 1
 
+def orient_edges(tiling):
+    oriented = tiling
+    for i in range(len(tiling)):
+        if sum(tiling[i][0]) % 2 == 1:
+            assert(sum(tiling[i][1]) % 2 == 0)
+            e = (tiling[i][1], tiling[i][0])
+            oriented[i] = e
+    return oriented
+
+def is_oriented_digraph(tiling):
+    return is_oriented(tiling.edges())
+
+def is_oriented(tiling):
+    return all([sum(e[0]) % 2 == 0 for e in tiling])
+
 def plot_3d_matching(tiling, filename="outputs/3dmatch.html"):
     visualize_graph_3d(nx.to_undirected(tiling), tiling.nodes(), [], filename, title="3d", coords={v: v for v in tiling.nodes()})
 
@@ -129,13 +144,13 @@ def get_all_flips(tiling):
                 flips.append(f)
     return flips
 
-def explore_flip_component(tiling):
+def explore_flip_component(tiling, progress=None):
     G = nx.Graph()
     G.add_node(tuple(sorted(tiling.edges())))
 
     q = [tiling]
+    count = 0
     while q: #continue until queue is empty
-        print(len(q))
         cur = q[0]
         cur_node = tuple(sorted(cur.edges()))
         flips = get_all_flips(cur)
@@ -145,10 +160,13 @@ def explore_flip_component(tiling):
             new_tiling.add_edges_from(cur.edges())
             execute_flip(flip, new_tiling)
             new_node = tuple(sorted(new_tiling.edges()))
+
             if new_node not in G:
-                print("new tiling: " + str(new_node))
                 G.add_node(new_node)
                 q.append(new_tiling)
+                count += 1
+                if progress != None and count % progress == 0:
+                    print(count)
             G.add_edge(cur_node, new_node)
         q = q[1:]
     return G
