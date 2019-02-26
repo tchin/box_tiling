@@ -1,5 +1,6 @@
 import numpy as np
 import networkx as nx
+import itertools
 
 import sys
 sys.path.insert(0, '../graph_drawing')
@@ -9,6 +10,12 @@ def is_adjacent(u,v):
     diff = np.array(u) - np.array(v)
     diff_ind = np.nonzero(diff)[0]
     return len(diff_ind) == 1 and abs(diff[diff_ind]) == 1
+
+def get_edge_dim(u,v):
+    assert(is_adjacent(u,v))
+    diff = np.array(u) - np.array(v)
+    diff_ind = np.nonzero(diff)[0]
+    return diff_ind[0]
 
 def orient_edges(tiling):
     oriented = tiling
@@ -83,6 +90,32 @@ def execute_flip(vertices, tiling):
     tiling.remove_edges_from(edges_to_remove)
     tiling.add_edges_from(edges_to_add)
 
+def execute_flip_edges(vertices, tiling_edges):
+    dif1 = (np.array(vertices[0])-np.array(vertices[1])) != 0
+    dif2 = (np.array(vertices[0])-np.array(vertices[2])) != 0
+    flip_dims = np.nonzero(np.logical_or(dif1,dif2))[0]
+
+    sources = filter(lambda x: sum(x) % 2 == 0, vertices)
+
+    new_edges = []
+    for e in tiling_edges:
+        if e[0] in sources:
+            cur_dim = get_edge_dim(e[0],e[1])
+            new_dim = cur_dim ^ flip_dims[0] ^ flip_dims[1]
+
+            new_end_list = list(e[0])
+            new_end_list[new_dim] += 1
+            if tuple(new_end_list) in vertices:
+                new_edges.append((e[0], tuple(new_end_list)))
+            else:
+                new_end_list[new_dim] -= 2
+                assert(tuple(new_end_list) in vertices)
+                new_edges.append((e[0], tuple(new_end_list)))
+        else:
+            new_edges.append(e)
+    return sorted(new_edges)
+
+
 def vertices_have_trit(vertices, tiling):
     assert len(vertices) == 6
     assert all([v in tiling for v in vertices])
@@ -144,6 +177,27 @@ def get_all_flips(tiling):
                 flips.append(f)
     return flips
 
+def get_all_flips_edges(tiling_edges):
+    source_to_head = dict(tiling_edges)
+    head_to_source = dict((h,s) for s,h in tiling_edges)
+
+    flips = []
+    for source in source_to_head:
+        cur_dim = get_edge_dim(source, source_to_head[source])
+
+        neighbors_2d = [[0,1],[1,0]]
+        for n in neighbors_2d:
+            n.insert(cur_dim,0)
+        neighbors_to_check = [tuple(np.array(source) + np.array(n)) for n in neighbors_2d]
+
+        for n in neighbors_to_check:
+            if n in head_to_source:
+                n_edge = (head_to_source[n], n)
+                if is_adjacent(n_edge[0], source_to_head[source]):
+                    flips.append([source, source_to_head[source], n, head_to_source[n]])
+    return flips
+
+
 def explore_flip_component(tiling, progress=None):
     G = nx.Graph()
     G.add_node(tuple(sorted(tiling.edges())))
@@ -176,6 +230,29 @@ def explore_flip_component(tiling, progress=None):
             G.add_edge(cur_node, new_node, flip = flip)
         q = q[1:]
     return G
+
+def get_flip_component(tiling, progress=None):
+    component = {tuple(sorted(tiling.edges())): []}
+    count = 1
+
+    q = [tuple(sorted(tiling.edges()))]
+    while q:
+        cur = q[0]
+
+        flips = filter(lambda x: x not in component[cur], get_all_flips_edges(cur))
+        for flip in flips:
+            flip = sorted(flip)
+            new_node = tuple(execute_flip_edges(flip, cur))
+            if new_node not in component:
+                component[new_node] = []
+                q.append(new_node)
+                if progress != None:
+                    count += 1
+                    if count % progress == 0:
+                        print(count)
+            component[new_node].append(flip)
+        q = q[1:]
+    return component
 
 def compute_twist(tiling):
     u = np.array([0,0,-1])
