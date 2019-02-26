@@ -17,6 +17,12 @@ def get_edge_dim(u,v):
     diff_ind = np.nonzero(diff)[0]
     return diff_ind[0]
 
+def increment_dims(v, dims):
+    new_v = list(v)
+    for d in dims:
+        new_v[d] += 1
+    return tuple(new_v)
+
 def orient_edges(tiling):
     oriented = tiling
     for i in range(len(tiling)):
@@ -115,7 +121,6 @@ def execute_flip_edges(vertices, tiling_edges):
             new_edges.append(e)
     return sorted(new_edges)
 
-
 def vertices_have_trit(vertices, tiling):
     assert len(vertices) == 6
     assert all([v in tiling for v in vertices])
@@ -197,6 +202,40 @@ def get_all_flips_edges(tiling_edges):
                     flips.append([source, source_to_head[source], n, head_to_source[n]])
     return flips
 
+def get_all_trits_edges(tiling_edges):
+    trits = []
+
+    source_to_head = dict(tiling_edges)
+    print(source_to_head)
+    head_to_source = dict((h,s) for s,h in tiling_edges)
+
+    for u in source_to_head:
+        v = source_to_head[u]
+        dim1 = get_edge_dim(u,v)
+        other_dims = [0,1,2]
+        other_dims.remove(dim1)
+        dim2 = other_dims[0]
+        dim3 = other_dims[1]
+        print("edge: " + str(u) + ", " + str(v))
+
+        u2 = increment_dims(u,[dim2])
+        u3 = increment_dims(u,[dim3])
+        u23 = increment_dims(u,[dim2,dim3])
+
+        v2 = increment_dims(v,[dim2])
+        v3 = increment_dims(v,[dim3])
+        v23 = increment_dims(v, [dim2, dim3])
+        print("other heads: " + str(u23) + " " + str(v23))
+        if u23 in source_to_head and v23 in head_to_source:
+            print("\toption 1:" + str(u23) + ", " + str(u2) + " and " + str(v23) + ", " + str(v3))
+            if source_to_head[u23] == u2 and source_to_head[v3] == v23:
+                trits.append([u,v,u23,u2,v23,v3])
+            elif source_to_head[u23] == u3 and source_to_head[v2] == v23:
+                trits.append([u,v,u23,u3,v23,v2])
+            else:
+                print("\t\tfound " + str(u23) + ", " + str(source_to_head[u23]))
+                print("\t\t\t" + str(head_to_source[v23]) + ", " + str(v23))
+    return trits
 
 def explore_flip_component(tiling, progress=None):
     G = nx.Graph()
