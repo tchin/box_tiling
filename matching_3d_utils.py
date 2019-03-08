@@ -1,10 +1,10 @@
 import numpy as np
 import networkx as nx
-import itertools
 
 import sys
 sys.path.insert(0, '../graph_drawing')
 from plotly_visualize import visualize_graph_3d
+
 
 def is_adjacent(u,v):
     diff = np.array(u) - np.array(v)
@@ -129,7 +129,7 @@ def vertices_have_trit(vertices, tiling):
 
     for v in vertices:
         neighbors = list(tiling.predecessors(v)) + list(tiling.successors(v))
-        assert len(neighbors) == 1
+        assert(len(neighbors) == 1)
         if neighbors[0] not in vertices:
             return False
     return True
@@ -206,7 +206,6 @@ def get_all_trits_edges(tiling_edges):
     trits = []
 
     source_to_head = dict(tiling_edges)
-    print(source_to_head)
     head_to_source = dict((h,s) for s,h in tiling_edges)
 
     for u in source_to_head:
@@ -216,7 +215,6 @@ def get_all_trits_edges(tiling_edges):
         other_dims.remove(dim1)
         dim2 = other_dims[0]
         dim3 = other_dims[1]
-        print("edge: " + str(u) + ", " + str(v))
 
         u2 = increment_dims(u,[dim2])
         u3 = increment_dims(u,[dim3])
@@ -225,16 +223,11 @@ def get_all_trits_edges(tiling_edges):
         v2 = increment_dims(v,[dim2])
         v3 = increment_dims(v,[dim3])
         v23 = increment_dims(v, [dim2, dim3])
-        print("other heads: " + str(u23) + " " + str(v23))
         if u23 in source_to_head and v23 in head_to_source:
-            print("\toption 1:" + str(u23) + ", " + str(u2) + " and " + str(v23) + ", " + str(v3))
             if source_to_head[u23] == u2 and source_to_head[v3] == v23:
                 trits.append([u,v,u23,u2,v23,v3])
             elif source_to_head[u23] == u3 and source_to_head[v2] == v23:
                 trits.append([u,v,u23,u3,v23,v2])
-            else:
-                print("\t\tfound " + str(u23) + ", " + str(source_to_head[u23]))
-                print("\t\t\t" + str(head_to_source[v23]) + ", " + str(v23))
     return trits
 
 def explore_flip_component(tiling, progress=None):
