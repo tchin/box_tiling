@@ -280,8 +280,12 @@ def get_flip_component_disk(tiling, dims, db, progress=None):
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
     cur.execute("CREATE TABLE IF NOT EXISTS component(tiling text, flips text)")
+    cur.execute("CREATE INDEX IF NOT EXISTS tiling_index ON component(tiling)")
 
-    cur.execute("INSERT INTO component VALUES (?,?)", (str(tiling), ""))
+    cur.execute("SELECT * FROM component WHERE tiling = :tiling", {"tiling": str(tiling)})
+    start_row = cur.fetchone()
+    if not start_row:
+        cur.execute("INSERT INTO component VALUES (?,?)", (str(tiling), ""))
 
     q = deque([tiling])
     count = 1
@@ -310,11 +314,11 @@ def get_flip_component_disk(tiling, dims, db, progress=None):
                 if progress:
                     count += 1
                     if count % progress == 0:
+                        conn.commit()
                         print(count)
             else:
                 new_flips = new_row["flips"] + ":" + flip_str
                 cur.execute("UPDATE component SET flips = ? WHERE tiling = ?", (new_flips, str(cur_tiling)))
-        conn.commit()
 
 
 
