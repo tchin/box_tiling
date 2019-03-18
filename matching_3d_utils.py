@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 from collections import deque
+import sqlite3
 
 
 def is_adjacent(u,v, dims=None):
@@ -272,6 +273,49 @@ def explore_flip_component(tiling, progress=None):
             G.add_edge(cur_node, new_node, flip = flip)
         q = q[1:]
     return G
+
+
+def get_flip_component_disk(tiling, dims, db, progress=None):
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+    cur.execute("CREATE TABLE IF NOT EXISTS component(tiling text, flips text)")
+
+    cur.execute("INSERT INTO component VALUES (?,?)", (str(tiling), ""))
+
+    q = deque([tiling])
+    count = 1
+    while q:
+        cur_tiling = q.pop()
+
+        cur.execute("SELECT * FROM component WHERE tiling = :tiling", {"tiling": str(cur_tiling)})
+        row = cur.fetchone()
+
+        if row["flips"] == "":
+            done = []
+        else:
+            done = [sorted([int(i) for i in flip.split(",")]) for flip in row["flips"].split(":")]
+        flips = filter(lambda x: sorted(x) not in done, get_all_flips_edges(cur_tiling, dims))
+        for flip in flips:
+            flip = sorted(flip)
+            flip_str = ",".join([str(f) for f in flip])
+
+            new_node = execute_flip_edges(flip, cur_tiling, dims)
+
+            cur.execute("SELECT * FROM component WHERE tiling=:tiling", {"tiling": str(new_node)})
+            new_row = cur.fetchone()
+            if not new_row:
+                cur.execute("INSERT INTO component VALUES (?,?)", (str(new_node), flip_str))
+                q.append(new_node)
+                if progress:
+                    count += 1
+                    if count % progress == 0:
+                        print(count)
+            else:
+                new_flips = new_row["flips"] + ":" + flip_str
+                cur.execute("UPDATE component SET flips = ? WHERE tiling = ?", (new_flips, str(cur_tiling)))
+        conn.commit()
+
 
 
 def get_flip_component(tiling, dims, progress=None):

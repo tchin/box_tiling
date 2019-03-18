@@ -48,6 +48,10 @@ def save_flip_component(start_tiling, dim, adj_file, to_print=False, progress=No
     f.write(str(flip_list))
     f.close()
 
+
+def save_flip_component_db(start_tiling, dim, db, progress=None):
+    get_flip_component_disk(start_tiling, dim, db, progress)
+
 ## 2 x 2 x 2, all parallel
 # dims = [2,2,2]
 # tiling_edges = orient_edges([((x,y,0), (x,y,1)) for x in [0,1] for y in [0,1]])
@@ -66,7 +70,7 @@ def save_flip_component(start_tiling, dim, adj_file, to_print=False, progress=No
 # test_trit_vertices = [(1,2,2),(1,2,1),(1,1,1),(2,1,1),(2,2,2),(2,1,2)]
 # test_flip_vertices = [(1,2,3),(2,2,3),(1,1,3),(2,1,3)]
 
-## 4x4x4 box with twist 1. 236 tilings in flip component
+## 4x4x4 box with twist 1. 236 tilings in flip component (444 comp 2)
 # dims = [4,4,4]
 # tiling_edges = [\
 #     ((0,0,0),(1,0,0)), ((2,0,0),(2,1,0)), ((1,1,0),(1,2,0)), ((3,1,0),(3,2,0)), ((0,2,0),(0,3,0)), ((3,3,0),(2,3,0)),\
@@ -78,7 +82,7 @@ def save_flip_component(start_tiling, dim, adj_file, to_print=False, progress=No
 #     ((0,1,3),(0,0,3)), ((0,3,3),(0,2,3)), ((1,2,3),(1,1,3)), ((2,3,3),(2,2,3)), ((3,0,3),(2,0,3)), ((3,2,3),(3,1,3))\
 #     ]
 
-## 4x4x4 box with twist 0 in giant (4412646453) component. Crashes if you try to explore the full component
+## 4x4x4 box with twist 0 in giant (4412646453) component. (444 comp 1)
 dims = [4,4,4]
 tiling_edges = orient_edges([((x,y,z), (x,y,z+1)) for x in range(4) for y in range(4) for z in [0,2]])
 
@@ -91,11 +95,9 @@ tiling.add_edges_from(tiling_edges)
 
 vertex_mapping = {v: dims[1]*dims[0]*v[0] + dims[0]*v[1] + v[2] for v in tiling.nodes()}
 nx.relabel_nodes(tiling, vertex_mapping, False)
-print(tiling.edges())
-print(graph_to_matching_tuple(tiling))
 tiling_tuple = graph_to_matching_tuple(tiling)
 
-save_flip_component(tiling_tuple, dims, "/dev/null", True, progress=10000)
+save_flip_component_db(tiling_tuple, dims, "flip_components/graphs/box444comp1.db", progress=10000)
 
 # print("starting exploration")
 
