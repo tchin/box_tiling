@@ -1,15 +1,29 @@
 import numpy as np
 import networkx as nx
-
-import sys
-sys.path.insert(0, '../graph_drawing')
-from plotly_visualize import visualize_graph_3d
+from collections import deque
 
 
-def is_adjacent(u,v):
-    diff = np.array(u) - np.array(v)
-    diff_ind = np.nonzero(diff)[0]
-    return len(diff_ind) == 1 and abs(diff[diff_ind]) == 1
+def is_adjacent(u,v, dims=None):
+    if dims:
+        n = dims[0] * dims[1] * dims[2]
+        if u >= n or v >=n:
+            return False
+        poss = [1, dims[0], dims[0]*dims[1]]
+        diff = abs(u-v)
+        if diff not in poss:
+            return False
+        else:
+            for i in range(len(poss)-1):
+                if diff == poss[i]:
+                    return int(u/poss[i+1]) == int(v/poss[i+1])
+        return True
+    else:
+        diff = np.array(u) - np.array(v)
+        diff_ind = np.nonzero(diff)[0]
+        return len(diff_ind) == 1 and abs(diff[diff_ind]) == 1
+
+def get_neighbor_offsets(dims):
+    return [1, dims[0], dims[0]*dims[1]]
 
 def get_edge_dim(u,v):
     assert(is_adjacent(u,v))
@@ -17,11 +31,13 @@ def get_edge_dim(u,v):
     diff_ind = np.nonzero(diff)[0]
     return diff_ind[0]
 
+
 def increment_dims(v, dims):
     new_v = list(v)
     for d in dims:
         new_v[d] += 1
     return tuple(new_v)
+
 
 def orient_edges(tiling):
     oriented = tiling
@@ -32,33 +48,37 @@ def orient_edges(tiling):
             oriented[i] = e
     return oriented
 
+
+def graph_to_matching_tuple(tiling):
+    return tuple([list(tiling.neighbors(v))[0] for v in range(nx.number_of_nodes(tiling))])
+
+
 def is_oriented_digraph(tiling):
     return is_oriented(tiling.edges())
+
 
 def is_oriented(tiling):
     return all([sum(e[0]) % 2 == 0 for e in tiling])
 
-def plot_3d_matching(tiling, filename="outputs/3dmatch.html"):
-    visualize_graph_3d(nx.to_undirected(tiling), tiling.nodes(), [], filename, title="3d", coords={v: v for v in tiling.nodes()})
 
-def vertices_have_flip(vertices, tiling):
+def vertices_have_flip(vertices, tiling, n=None):
     """
     Given a (directed) tiling graph and four vertices, check if there is a flip move
     between the vertices.
 
     Assumes that the given tiling is indeed a perfect matching
     """
-    assert len(vertices) == 4
-    assert all([v in tiling for v in vertices])
-
+    if not n:
+        n = len(tiling)
     # check all edges out of a vertex in our group goes to another vertex in our group
     for v in vertices:
-        neighbors = list(tiling.successors(v)) + list(tiling.predecessors(v))
-        assert(len(neighbors) == 1)
-        if neighbors[0] not in vertices:
+        if v >= n:
             return False
-
+        neighbor = tiling[v]
+        if neighbor not in vertices:
+            return False
     return True
+
 
 def execute_flip(vertices, tiling):
     assert vertices_have_flip(vertices, tiling)
@@ -96,30 +116,21 @@ def execute_flip(vertices, tiling):
     tiling.remove_edges_from(edges_to_remove)
     tiling.add_edges_from(edges_to_add)
 
-def execute_flip_edges(vertices, tiling_edges):
-    dif1 = (np.array(vertices[0])-np.array(vertices[1])) != 0
-    dif2 = (np.array(vertices[0])-np.array(vertices[2])) != 0
-    flip_dims = np.nonzero(np.logical_or(dif1,dif2))[0]
 
-    sources = filter(lambda x: sum(x) % 2 == 0, vertices)
+def execute_flip_edges(vertices, tiling_edges, dims):
+    n1 = tiling_edges[vertices[0]]
+    neighbors = filter(lambda v: is_adjacent(vertices[0], v, dims), vertices)
+    new_neighbor = neighbors[0] if neighbors[0] != n1 else neighbors[1]
+    non_neighbor = tiling_edges[new_neighbor]
 
-    new_edges = []
-    for e in tiling_edges:
-        if e[0] in sources:
-            cur_dim = get_edge_dim(e[0],e[1])
-            new_dim = cur_dim ^ flip_dims[0] ^ flip_dims[1]
+    new_tiling = list(tiling_edges)
+    new_tiling[vertices[0]] = new_neighbor
+    new_tiling[new_neighbor] = vertices[0]
+    new_tiling[n1] = non_neighbor
+    new_tiling[non_neighbor] = n1
 
-            new_end_list = list(e[0])
-            new_end_list[new_dim] += 1
-            if tuple(new_end_list) in vertices:
-                new_edges.append((e[0], tuple(new_end_list)))
-            else:
-                new_end_list[new_dim] -= 2
-                assert(tuple(new_end_list) in vertices)
-                new_edges.append((e[0], tuple(new_end_list)))
-        else:
-            new_edges.append(e)
-    return sorted(new_edges)
+    return tuple(new_tiling)
+
 
 def vertices_have_trit(vertices, tiling):
     assert len(vertices) == 6
@@ -133,6 +144,7 @@ def vertices_have_trit(vertices, tiling):
         if neighbors[0] not in vertices:
             return False
     return True
+
 
 def execute_trit(vertices, tiling):
     assert vertices_have_trit(vertices, tiling)
@@ -153,6 +165,7 @@ def execute_trit(vertices, tiling):
             edges_to_add.append((v, new_end))
     tiling.remove_edges_from(edges_to_remove)
     tiling.add_edges_from(edges_to_add)
+
 
 def get_all_flips(tiling):
     flips = []
@@ -182,25 +195,21 @@ def get_all_flips(tiling):
                 flips.append(f)
     return flips
 
-def get_all_flips_edges(tiling_edges):
-    source_to_head = dict(tiling_edges)
-    head_to_source = dict((h,s) for s,h in tiling_edges)
 
+def get_all_flips_edges(tiling_edges, dims):
     flips = []
-    for source in source_to_head:
-        cur_dim = get_edge_dim(source, source_to_head[source])
 
-        neighbors_2d = [[0,1],[1,0]]
-        for n in neighbors_2d:
-            n.insert(cur_dim,0)
-        neighbors_to_check = [tuple(np.array(source) + np.array(n)) for n in neighbors_2d]
-
-        for n in neighbors_to_check:
-            if n in head_to_source:
-                n_edge = (head_to_source[n], n)
-                if is_adjacent(n_edge[0], source_to_head[source]):
-                    flips.append([source, source_to_head[source], n, head_to_source[n]])
+    poss = get_neighbor_offsets(dims)
+    for v in range(len(tiling_edges)):
+        neighbor = tiling_edges[v]
+        if neighbor > v:
+            diff = neighbor - v
+            for offset in poss:
+                if offset != diff and is_adjacent(v, v + offset, dims):
+                    if tiling_edges[v + offset] == neighbor + offset:
+                        flips.append([v, neighbor, v + offset, neighbor + offset])
     return flips
+
 
 def get_all_trits_edges(tiling_edges):
     trits = []
@@ -229,6 +238,7 @@ def get_all_trits_edges(tiling_edges):
             elif source_to_head[u23] == u3 and source_to_head[v2] == v23:
                 trits.append([u,v,u23,u3,v23,v2])
     return trits
+
 
 def explore_flip_component(tiling, progress=None):
     G = nx.Graph()
@@ -263,28 +273,29 @@ def explore_flip_component(tiling, progress=None):
         q = q[1:]
     return G
 
-def get_flip_component(tiling, progress=None):
-    component = {tuple(sorted(tiling.edges())): []}
+
+def get_flip_component(tiling, dims, progress=None):
+    component = {tiling: []}
     count = 1
 
-    q = [tuple(sorted(tiling.edges()))]
+    q = deque([tiling])
     while q:
-        cur = q[0]
+        cur = q.pop()
 
-        flips = filter(lambda x: x not in component[cur], get_all_flips_edges(cur))
+        flips = filter(lambda x: sorted(x) not in component[cur], get_all_flips_edges(cur, dims))
         for flip in flips:
             flip = sorted(flip)
-            new_node = tuple(execute_flip_edges(flip, cur))
+            new_node = tuple(execute_flip_edges(flip, cur, dims))
             if new_node not in component:
                 component[new_node] = []
                 q.append(new_node)
-                if progress != None:
+                if progress:
                     count += 1
                     if count % progress == 0:
                         print(count)
             component[new_node].append(flip)
-        q = q[1:]
     return component
+
 
 def compute_twist(tiling):
     u = np.array([0,0,-1])
