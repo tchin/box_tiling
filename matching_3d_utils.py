@@ -2,6 +2,7 @@ import numpy as np
 import networkx as nx
 from collections import deque
 import sqlite3
+import sys
 
 
 def is_adjacent(u,v, dims=None):
@@ -316,6 +317,7 @@ def get_flip_component_disk(tiling, dims, db, progress=None):
                     if count % progress == 0:
                         conn.commit()
                         print(count)
+			sys.stdout.flush()
             else:
                 new_flips = new_row["flips"] + ":" + flip_str
                 cur.execute("UPDATE component SET flips = ? WHERE tiling = ?", (new_flips, str(cur_tiling)))
