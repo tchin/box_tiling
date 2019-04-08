@@ -356,36 +356,50 @@ def init_queue_from_disk(db):
     return deque(q_list)
 
 
-def get_flip_component_size(tiling, dims, progress=None):
+def get_flip_component_size(tiling, dims, progress_file, progress=None):
     count = 1
     prev_depth = {}
     cur_depth = {tiling: []}
     next_depth = {}
-    cur_depth = 0
+    depth = 0
+
+    degree_seq = {}
+
+    f = open(progress_file,'w')
 
     q = deque([tiling])
     while q:
         cur = q.pop()
 
         if cur in next_depth:
-            print(str(len(cur_depth)) + " tilings at depth " + str(cur_depth))
+            f.write(str(len(cur_depth)) + " tilings at depth " + str(depth) + "\n")
             prev_depth = cur_depth
             cur_depth = next_depth
             next_depth = {}
-            cur_depth += 1
+            depth += 1
 
-        flips = filter(lambda x: sorted(x) not in component[cur], get_all_flips_edges(cur, dims))
+        all_flips = get_all_flips_edges(cur, dims)
+        if len(all_flips) not in degree_seq:
+            degree_seq[len(all_flips)] = 1
+        else:
+            degree_seq[len(all_flips)] += 1
+
+        flips = filter(lambda x: sorted(x) not in cur_depth[cur], all_flips)
         for flip in flips:
             flip = sorted(flip)
             new_node = tuple(execute_flip_edges(flip, cur, dims))
-            if new_node not in prev_depth and new_node not in cur_depth and new_node not in next_depth:
-                next_depth[new_node] = []
-                q.append(new_node)
-                if progress:
+            if new_node not in prev_depth and new_node not in cur_depth:
+                if new_node not in next_depth:
+                    next_depth[new_node] = []
+                    q.append(new_node)
                     count += 1
-                    if count % progress == 0:
+                    if progress and count % progress == 0:
                         print(count)
+                next_depth[new_node].append(flip)
 
+    f.close()
+    print(degree_seq)
+    return count
 
 
 
