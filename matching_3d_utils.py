@@ -374,7 +374,7 @@ def get_flip_component_size(tiling, dims, progress_file, progress=None):
         cur = q.pop()
 
         if cur in next_depth:
-            f.write(str(len(cur_depth)) + " tilings at depth " + str(depth) + "\n")
+            f.write(str(depth)+","+str(len(cur_depth))+ "\n")
             prev_depth = cur_depth
             cur_depth = next_depth
             next_depth = {}
