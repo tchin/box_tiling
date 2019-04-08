@@ -279,16 +279,23 @@ def get_flip_component_disk(tiling, dims, db, progress=None):
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    cur.execute("CREATE TABLE IF NOT EXISTS component(tiling text, flips text)")
+    cur.execute("CREATE TABLE IF NOT EXISTS component(tiling text, flips text, depth integer)")
     cur.execute("CREATE INDEX IF NOT EXISTS tiling_index ON component(tiling)")
 
-    cur.execute("SELECT * FROM component WHERE tiling = :tiling", {"tiling": str(tiling)})
+    cur.execute("SELECT * FROM component")
     start_row = cur.fetchone()
-    if not start_row:
-        cur.execute("INSERT INTO component VALUES (?,?)", (str(tiling), ""))
+    if start_row:
+        q = init_queue_from_disk(db)
+        cur.execute("select max(depth) from component")
+        cur_depth = cur.fetchone()[0]
 
-    q = deque([tiling])
-    count = 1
+    else:
+        cur.execute("INSERT INTO component VALUES (?,?,?)", (str(tiling), "", 0))
+        q = deque([tiling])
+        cur_depth = 0
+        count = 1
+
+    f = open("")
     while q:
         cur_tiling = q.pop()
 
@@ -299,6 +306,14 @@ def get_flip_component_disk(tiling, dims, db, progress=None):
             done = []
         else:
             done = [sorted([int(i) for i in flip.split(",")]) for flip in row["flips"].split(":")]
+
+        if row["depth"] > cur_depth:
+            cur.execute("select count(*) from component where depth = ?", (cur_depth-1,))
+            num_deleting = cur.fetchone()[0]
+            print(str(num_deleting) + " tilings at depth " + str(cur_depth - 1))
+            cur.execute("DELETE FROM component WHERE depth <= ?", (cur_depth-1,))
+            cur_depth += 1
+
         flips = filter(lambda x: sorted(x) not in done, get_all_flips_edges(cur_tiling, dims))
         for flip in flips:
             flip = sorted(flip)
@@ -309,7 +324,7 @@ def get_flip_component_disk(tiling, dims, db, progress=None):
             cur.execute("SELECT * FROM component WHERE tiling=:tiling", {"tiling": str(new_node)})
             new_row = cur.fetchone()
             if not new_row:
-                cur.execute("INSERT INTO component VALUES (?,?)", (str(new_node), flip_str))
+                cur.execute("INSERT INTO component VALUES (?,?,?)", (str(new_node), flip_str, cur_depth+1))
                 q.append(new_node)
                 if progress:
                     count += 1
@@ -319,6 +334,58 @@ def get_flip_component_disk(tiling, dims, db, progress=None):
             else:
                 new_flips = new_row["flips"] + ":" + flip_str
                 cur.execute("UPDATE component SET flips = ? WHERE tiling = ?", (new_flips, str(cur_tiling)))
+
+    print("final count: " + str(count))
+
+
+def init_queue_from_disk(db):
+    conn = sqlite3.connect(db)
+    conn.row_factory = sqlite3.Row
+    cur = conn.cursor()
+
+    cur.execute("select max(depth) from component")
+    max_depth = cur.fetchone()[0]
+
+    cur.execute("select tiling from component where depth=?", (max_depth,))
+    max_depth_tilings = cur.fetchall()
+    tiling_list = [r["tiling"] for r in max_depth_tilings]
+    qstr_list = [s[1:-1].split(",") for s in tiling_list]
+    q_list = [tuple([int(i) for i in s]) for s in qstr_list]
+    conn.close()
+
+    return deque(q_list)
+
+
+def get_flip_component_size(tiling, dims, progress=None):
+    count = 1
+    prev_depth = {}
+    cur_depth = {tiling: []}
+    next_depth = {}
+    cur_depth = 0
+
+    q = deque([tiling])
+    while q:
+        cur = q.pop()
+
+        if cur in next_depth:
+            print(str(len(cur_depth)) + " tilings at depth " + str(cur_depth))
+            prev_depth = cur_depth
+            cur_depth = next_depth
+            next_depth = {}
+            cur_depth += 1
+
+        flips = filter(lambda x: sorted(x) not in component[cur], get_all_flips_edges(cur, dims))
+        for flip in flips:
+            flip = sorted(flip)
+            new_node = tuple(execute_flip_edges(flip, cur, dims))
+            if new_node not in prev_depth and new_node not in cur_depth and new_node not in next_depth:
+                next_depth[new_node] = []
+                q.append(new_node)
+                if progress:
+                    count += 1
+                    if count % progress == 0:
+                        print(count)
+
 
 
 
