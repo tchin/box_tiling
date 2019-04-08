@@ -99,7 +99,8 @@ vertex_mapping = {v: dims[1]*dims[0]*v[0] + dims[0]*v[1] + v[2] for v in tiling.
 nx.relabel_nodes(tiling, vertex_mapping, False)
 tiling_tuple = graph_to_matching_tuple(tiling)
 
-save_flip_component_db(tiling_tuple, dims, "/data/people/tchin/box444comp1.db", progress=10000)
 
+# save_flip_component_db(tiling_tuple, dims, "flip_components/graphs/box444comp1.db", progress=10000, progress_prefix="flip_components/graphs/box444comp1")
+size = get_flip_component_size(tiling_tuple, dims, "flip_components/graphs/box444comp1depths.txt", progress=10000)
 # print("starting exploration")
 
