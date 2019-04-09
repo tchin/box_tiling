@@ -370,13 +370,13 @@ def get_flip_component_size(tiling, dims, progress_file, progress=None):
 
     degree_seq = {}
 
-    f = open(progress_file, 'a+', buffering=1024)
     q = deque([tiling])
+    progress_str = ""
     while q:
         cur = q.pop()
 
         if cur in next_depth:
-            f.write(str(len(cur_depth))+"\n")
+            progress_str += str(depth) + "," + str(len(cur_depth))+"\n"
             prev_depth.clear()
             prev_depth = cur_depth
             cur_depth = next_depth
@@ -400,8 +400,14 @@ def get_flip_component_size(tiling, dims, progress_file, progress=None):
                     count += 1
                     if progress and count % progress == 0:
                         print(count)
+                        print(degree_seq)
+                        f = open(progress_file, 'a+')
+                        f.write(progress_str)
+                        f.close()
+                        progress_str = ""
                 next_depth[new_node].append(flip)
-
+    f = open(progress_file, 'a+', buffering=1024)
+    f.write(progress_str)
     f.close()
     print(degree_seq)
     return count
