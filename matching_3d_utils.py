@@ -2,8 +2,6 @@ import numpy as np
 import networkx as nx
 from collections import deque
 import sqlite3
-import gc
-from mem_top import mem_top
 
 
 def is_adjacent(u,v, dims=None):
