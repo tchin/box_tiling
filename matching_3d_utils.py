@@ -2,6 +2,7 @@ import numpy as np
 import networkx as nx
 from collections import deque
 import sqlite3
+import sys
 
 
 def is_adjacent(u,v, dims=None):
@@ -408,6 +409,7 @@ def get_flip_component_size(tiling, dims, progress_file, progress=None):
                         f.write(progress_str)
                         f.close()
                         progress_str = ""
+                        sys.stdout.flush()
                 next_depth[new_node].append(flip)
     f = open(progress_file, 'a+', buffering=1024)
     f.write(progress_str)
