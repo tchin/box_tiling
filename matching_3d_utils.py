@@ -2,7 +2,6 @@ import numpy as np
 import networkx as nx
 from collections import deque
 import sqlite3
-import sys
 
 
 def is_adjacent(u,v, dims=None):
@@ -24,8 +23,10 @@ def is_adjacent(u,v, dims=None):
         diff_ind = np.nonzero(diff)[0]
         return len(diff_ind) == 1 and abs(diff[diff_ind]) == 1
 
+
 def get_neighbor_offsets(dims):
     return [1, dims[0], dims[0]*dims[1]]
+
 
 def get_edge_dim(u,v):
     assert(is_adjacent(u,v))
@@ -120,9 +121,10 @@ def execute_flip(vertices, tiling):
 
 
 def execute_flip_edges(vertices, tiling_edges, dims):
+    poss = [1, dims[0], dims[0] * dims[1]]
     n1 = tiling_edges[vertices[0]]
-    neighbors = filter(lambda v: is_adjacent(vertices[0], v, dims), vertices)
-    new_neighbor = neighbors[0] if neighbors[0] != n1 else neighbors[1]
+
+    new_neighbor = next(v for v in vertices if (v != n1 and abs(v-vertices[0]) in poss))
     non_neighbor = tiling_edges[new_neighbor]
 
     new_tiling = list(tiling_edges)
@@ -200,6 +202,7 @@ def get_all_flips(tiling):
 
 def get_all_flips_edges(tiling_edges, dims):
     flips = []
+    n = len(tiling_edges)
 
     poss = get_neighbor_offsets(dims)
     for v in range(len(tiling_edges)):
@@ -207,9 +210,10 @@ def get_all_flips_edges(tiling_edges, dims):
         if neighbor > v:
             diff = neighbor - v
             for offset in poss:
-                if offset != diff and is_adjacent(v, v + offset, dims):
-                    if tiling_edges[v + offset] == neighbor + offset:
-                        flips.append([v, neighbor, v + offset, neighbor + offset])
+                if (offset != diff and v + offset < n
+                        and tiling_edges[v + offset] == neighbor + offset
+                        and is_adjacent(v, v + offset, dims)):
+                    flips.append([v, neighbor, v + offset, neighbor + offset])
     return flips
 
 
@@ -332,7 +336,6 @@ def get_flip_component_disk(tiling, dims, db, progress=None):
                     if count % progress == 0:
                         conn.commit()
                         print(count)
-			sys.stdout.flush()
             else:
                 new_flips = new_row["flips"] + ":" + flip_str
                 cur.execute("UPDATE component SET flips = ? WHERE tiling = ?", (new_flips, str(cur_tiling)))
@@ -367,17 +370,17 @@ def get_flip_component_size(tiling, dims, progress_file, progress=None):
 
     degree_seq = {}
 
-    f = open(progress_file,'w')
-
+    f = open(progress_file, 'a+', buffering=1024)
     q = deque([tiling])
     while q:
         cur = q.pop()
 
         if cur in next_depth:
-            f.write(str(depth)+","+str(len(cur_depth))+ "\n")
+            f.write(str(len(cur_depth))+"\n")
+            prev_depth.clear()
             prev_depth = cur_depth
             cur_depth = next_depth
-            next_depth = {}
+            next_depth = dict()
             depth += 1
 
         all_flips = get_all_flips_edges(cur, dims)
@@ -402,7 +405,6 @@ def get_flip_component_size(tiling, dims, progress_file, progress=None):
     f.close()
     print(degree_seq)
     return count
-
 
 
 def get_flip_component(tiling, dims, progress=None):
