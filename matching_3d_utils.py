@@ -2,6 +2,8 @@ import numpy as np
 import networkx as nx
 from collections import deque
 import sqlite3
+import gc
+from mem_top import mem_top
 
 
 def is_adjacent(u,v, dims=None):
@@ -362,6 +364,10 @@ def init_queue_from_disk(db):
 
 
 def get_flip_component_size(tiling, dims, progress_file, progress=None):
+    # clear file contents
+    f = open(progress_file, "w+")
+    f.close()
+
     count = 1
     prev_depth = {}
     cur_depth = {tiling: []}
@@ -373,7 +379,7 @@ def get_flip_component_size(tiling, dims, progress_file, progress=None):
     q = deque([tiling])
     progress_str = ""
     while q:
-        cur = q.pop()
+        cur = q.popleft()
 
         if cur in next_depth:
             progress_str += str(depth) + "," + str(len(cur_depth))+"\n"
@@ -400,7 +406,6 @@ def get_flip_component_size(tiling, dims, progress_file, progress=None):
                     count += 1
                     if progress and count % progress == 0:
                         print(count)
-                        print(degree_seq)
                         f = open(progress_file, 'a+')
                         f.write(progress_str)
                         f.close()
