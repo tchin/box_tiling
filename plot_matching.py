@@ -1,7 +1,7 @@
 import sys
 import networkx as nx
 
-sys.path.insert(0, '../graph_drawing')
+sys.path.insert(0, './graph_drawing')
 from plotly_visualize import visualize_graph_3d
 
 

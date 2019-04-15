@@ -1,8 +1,7 @@
 #! /usr/bin/python
 
-import networkx as nx
 import matplotlib.pyplot as plt
-import numpy as np
+from plot_matching import plot_3d_matching
 
 from matching_3d_utils import *
 
@@ -54,6 +53,7 @@ def save_flip_component(start_tiling, dim, adj_file, to_print=False, progress=No
 def save_flip_component_db(start_tiling, dim, db, progress=None):
     get_flip_component_disk(start_tiling, dim, db, progress)
 
+
 ## 2 x 2 x 2, all parallel
 # dims = [2,2,2]
 # tiling_edges = orient_edges([((x,y,0), (x,y,1)) for x in [0,1] for y in [0,1]])
@@ -94,12 +94,11 @@ assert(is_oriented(tiling_edges))
 
 tiling = nx.Graph()
 tiling.add_edges_from(tiling_edges)
+# plot_3d_matching(tiling)
 
 vertex_mapping = {v: dims[1]*dims[0]*v[0] + dims[0]*v[1] + v[2] for v in tiling.nodes()}
 nx.relabel_nodes(tiling, vertex_mapping, False)
 tiling_tuple = graph_to_matching_tuple(tiling)
 
+# size = get_flip_component_size(tiling_tuple, dims, "flip_components/graphs/box444comp1depths.txt", progress=10000)
 
-# save_flip_component_db(tiling_tuple, dims, "flip_components/graphs/box444comp1.db", progress=10000, progress_prefix="flip_components/graphs/box444comp1")
-size = get_flip_component_size(tiling_tuple, dims, "flip_components/graphs/box444comp1depths.txt", progress=10000)
-print(size)
