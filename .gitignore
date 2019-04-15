@@ -1,2 +1,6 @@
 outputs/*
 matching_3d_utils.pyc
+.idea/*
+flip_components/pictures/*
+*.pyc
+venv/*
