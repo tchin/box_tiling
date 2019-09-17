@@ -96,6 +96,7 @@ tiling = nx.Graph()
 tiling.add_edges_from(tiling_edges)
 # plot_3d_matching(tiling)
 
+# relabel coordinate tuples to single integer (for speed)
 vertex_mapping = {v: dims[1]*dims[0]*v[0] + dims[0]*v[1] + v[2] for v in tiling.nodes()}
 nx.relabel_nodes(tiling, vertex_mapping, False)
 tiling_tuple = graph_to_matching_tuple(tiling)

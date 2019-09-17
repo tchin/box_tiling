@@ -5,6 +5,7 @@ import sqlite3
 import sys
 
 
+# return whether or not two nodes in the box are adjacent, either using provided dimensions, or by comparing np arrays
 def is_adjacent(u,v, dims=None):
     if dims:
         n = dims[0] * dims[1] * dims[2]
@@ -25,17 +26,19 @@ def is_adjacent(u,v, dims=None):
         return len(diff_ind) == 1 and abs(diff[diff_ind]) == 1
 
 
+# return differences that can correspond to offsets between neighboring vertices based on dimensions
 def get_neighbor_offsets(dims):
     return [1, dims[0], dims[0]*dims[1]]
 
 
+# determine along which dimension u and v are adjacent
 def get_edge_dim(u,v):
     assert(is_adjacent(u,v))
     diff = np.array(u) - np.array(v)
     diff_ind = np.nonzero(diff)[0]
     return diff_ind[0]
 
-
+# given vertex and an np array, return the vertex dims away from v
 def increment_dims(v, dims):
     new_v = list(v)
     for d in dims:
@@ -43,6 +46,7 @@ def increment_dims(v, dims):
     return tuple(new_v)
 
 
+# turn an unoriented tiling into an oriented one (to compute twist)
 def orient_edges(tiling):
     oriented = tiling
     for i in range(len(tiling)):
@@ -53,6 +57,7 @@ def orient_edges(tiling):
     return oriented
 
 
+# convert a perfect matching graph into a tiling tuple
 def graph_to_matching_tuple(tiling):
     return tuple([list(tiling.neighbors(v))[0] for v in range(nx.number_of_nodes(tiling))])
 
@@ -65,6 +70,7 @@ def is_oriented(tiling):
     return all([sum(e[0]) % 2 == 0 for e in tiling])
 
 
+# check whether four vertices are tiled such that a flip move could be performed in a given tiling
 def vertices_have_flip(vertices, tiling, n=None):
     """
     Given a (directed) tiling graph and four vertices, check if there is a flip move
@@ -84,6 +90,8 @@ def vertices_have_flip(vertices, tiling, n=None):
     return True
 
 
+# given four vertices with a flip move, return a new tiling resulting from executing a flip on those vertices
+## uses np arrays for vertices and directed graph for tiling
 def execute_flip(vertices, tiling):
     assert vertices_have_flip(vertices, tiling)
 
@@ -120,7 +128,7 @@ def execute_flip(vertices, tiling):
     tiling.remove_edges_from(edges_to_remove)
     tiling.add_edges_from(edges_to_add)
 
-
+# same as above, but using more efficient tuple storage
 def execute_flip_edges(vertices, tiling_edges, dims):
     poss = [1, dims[0], dims[0] * dims[1]]
     n1 = tiling_edges[vertices[0]]
@@ -136,7 +144,7 @@ def execute_flip_edges(vertices, tiling_edges, dims):
 
     return tuple(new_tiling)
 
-
+# determine whether six vertices have a potential trit move
 def vertices_have_trit(vertices, tiling):
     assert len(vertices) == 6
     assert all([v in tiling for v in vertices])
@@ -150,7 +158,7 @@ def vertices_have_trit(vertices, tiling):
             return False
     return True
 
-
+# execute a trit move on the given vertices
 def execute_trit(vertices, tiling):
     assert vertices_have_trit(vertices, tiling)
     trit_options = {v: filter(lambda x: is_adjacent(v,x), vertices) for v in vertices}
@@ -172,6 +180,7 @@ def execute_trit(vertices, tiling):
     tiling.add_edges_from(edges_to_add)
 
 
+# return a list of lists, where each inner list is a possible flip move in the tiling
 def get_all_flips(tiling):
     flips = []
 
@@ -200,7 +209,7 @@ def get_all_flips(tiling):
                 flips.append(f)
     return flips
 
-
+# same as above, but using more efficient tuple data structure
 def get_all_flips_edges(tiling_edges, dims):
     flips = []
     n = len(tiling_edges)
@@ -218,6 +227,7 @@ def get_all_flips_edges(tiling_edges, dims):
     return flips
 
 
+# return all possible trits, using tuple data structure
 def get_all_trits_edges(tiling_edges):
     trits = []
 
@@ -247,6 +257,8 @@ def get_all_trits_edges(tiling_edges):
     return trits
 
 
+# (ideally) return full graph of the flip connected component reachable from the initial tiling
+## warning: hangs on large components due to lack of memory
 def explore_flip_component(tiling, progress=None):
     G = nx.Graph()
     G.add_node(tuple(sorted(tiling.edges())))
@@ -281,6 +293,8 @@ def explore_flip_component(tiling, progress=None):
     return G
 
 
+# populate a database with all tilings flip-connected to initial tiling.
+## warning: hangs on large inputs (queue is too large to fit in memory)
 def get_flip_component_disk(tiling, dims, db, progress=None):
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
@@ -344,6 +358,7 @@ def get_flip_component_disk(tiling, dims, db, progress=None):
     print("final count: " + str(count))
 
 
+# utility for restarting if get_flip_component_disk is interrupted
 def init_queue_from_disk(db):
     conn = sqlite3.connect(db)
     conn.row_factory = sqlite3.Row
@@ -362,6 +377,7 @@ def init_queue_from_disk(db):
     return deque(q_list)
 
 
+# count how many tilings are in the flip-connected component
 def get_flip_component_size(tiling, dims, progress_file, progress=None):
     # clear file contents
     f = open(progress_file, "w+")
@@ -418,6 +434,7 @@ def get_flip_component_size(tiling, dims, progress_file, progress=None):
     return count
 
 
+# get a list (set) of all tilings in the connected component
 def get_flip_component(tiling, dims, progress=None):
     component = {tiling: []}
     count = 1
